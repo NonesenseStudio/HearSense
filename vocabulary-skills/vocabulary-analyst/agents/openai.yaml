@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vocabulary Analyst"
+  short_description: "Analyze long-term vocabulary conversion"
+  default_prompt: "Use `$vocabulary-analyst to analyze conversion, review load, and auditory retrieval trends."

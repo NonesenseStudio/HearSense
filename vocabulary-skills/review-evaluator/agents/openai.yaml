@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Evaluator"
+  short_description: "Evaluate retrieval and update word state"
+  default_prompt: "Use `$review-evaluator to score a response and decide retention, graduation, or re-entry."

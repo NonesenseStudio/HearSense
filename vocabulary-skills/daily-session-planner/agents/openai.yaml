@@ -1,0 +1,4 @@
+interface:
+  display_name: "Daily Session Planner"
+  short_description: "Plan a debt-free 20-minute session"
+  default_prompt: "Use `$daily-session-planner to plan today's 20-minute vocabulary session."

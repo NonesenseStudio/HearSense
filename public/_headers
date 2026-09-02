@@ -1,0 +1,6 @@
+# Service Workers must be revalidated so releases are picked up promptly.
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache

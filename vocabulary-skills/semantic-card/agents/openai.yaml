@@ -1,0 +1,4 @@
+interface:
+  display_name: "Semantic Card"
+  short_description: "Create compact audio-first word cards"
+  default_prompt: "Use `$semantic-card to create a compact audio-first semantic card."
