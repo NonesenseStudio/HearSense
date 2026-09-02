@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hearsense",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2026-09-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".output/public",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hearsense",
+      "database_id": "d3296b3a-c124-41c2-8bfa-c1d2f442887d",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": {
+    "NUXT_DICTIONARY_BASE_URL": "https://dict.hearsense.top",
+    "NUXT_DICTIONARY_TIMEOUT_MS": "6000",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "env": {
+    "production": {
+      "name": "hearsense-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "hearsense",
+          "database_id": "d3296b3a-c124-41c2-8bfa-c1d2f442887d",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "vars": {
+        "NUXT_DICTIONARY_BASE_URL": "https://dict.hearsense.top",
+        "NUXT_DICTIONARY_TIMEOUT_MS": "6000",
+      },
+    },
+  },
+}

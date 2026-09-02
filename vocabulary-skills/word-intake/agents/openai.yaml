@@ -1,0 +1,4 @@
+interface:
+  display_name: "Word Intake"
+  short_description: "Screen submitted words for useful learning"
+  default_prompt: "Use `$word-intake to classify a word and route it to the candidate inbox or active pool."

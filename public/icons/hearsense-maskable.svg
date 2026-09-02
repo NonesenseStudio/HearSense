@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="听义 HearSense">
+  <rect width="512" height="512" fill="#4f46e5"/>
+  <circle cx="256" cy="256" r="190" fill="#3730a3"/>
+  <path d="M136 220h70l82-67v206l-82-67h-70z" fill="#fff"/>
+  <path d="M326 209c28 29 28 65 0 94M365 174c51 49 51 115 0 164" fill="none" stroke="#99f6e4" stroke-width="27" stroke-linecap="round"/>
+</svg>
