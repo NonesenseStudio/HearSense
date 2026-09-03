@@ -8,7 +8,9 @@ export default defineNuxtConfig({
     cloudflare: { deployConfig: false, nodeCompat: true },
   },
   runtimeConfig: {
-    dictionaryBaseUrl: "https://dict.hearsense.top",
+    uapisBaseUrl: "https://uapis.cn",
+    uapisApiKey: "",
+    youdaoBaseUrl: "https://dict.youdao.com",
     dictionaryTimeoutMs: 6000,
   },
   css: ["~/assets/css/main.css"],

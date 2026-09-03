@@ -1,3 +1,3 @@
-export default defineEventHandler(async () => {
-  return { data: await useDictionaryService().health() };
+export default defineEventHandler(async (event) => {
+  return { data: await useDictionaryService(event).health() };
 });

@@ -56,7 +56,10 @@ Return a valid JSON object:
   "container": "active_review",
   "admit": true,
   "priority": 86,
-  "admission_reasons": ["repeated real-media encounter", "sound is familiar but meaning is unavailable"],
+  "admission_reasons": [
+    "repeated real-media encounter",
+    "sound is familiar but meaning is unavailable"
+  ],
   "activation_blocked_by_debt": false,
   "needs_clarification": false,
   "clarifying_question": null,

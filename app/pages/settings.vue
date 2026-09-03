@@ -170,10 +170,22 @@ async function installPwa() {
           :message="healthError.message"
         />
         <AppState
-          v-else-if="healthResponse?.data.available"
+          v-else-if="
+            healthResponse?.data.available &&
+            healthResponse.data.status === 'ok'
+          "
           kind="success"
           title="词典服务可用"
           :message="`检查时间：${new Date(healthResponse.data.checkedAt).toLocaleString('zh-CN')}`"
+        />
+        <AppState
+          v-else-if="healthResponse?.data.available"
+          kind="error"
+          title="词典服务部分可用"
+          :message="
+            healthResponse?.data.detail ??
+            'ECDICT、uapis 或有道当前处于降级状态；录入仍可继续。'
+          "
         />
         <AppState
           v-else
@@ -184,6 +196,41 @@ async function installPwa() {
             '没有可用详情；录入仍可继续，发音与释义不会被伪造。'
           "
         />
+        <dl
+          v-if="healthResponse?.data.providers"
+          class="settings-status dictionary-provider-status"
+        >
+          <div>
+            <dt>ECDICT</dt>
+            <dd>
+              {{
+                healthResponse.data.providers.ecdict.available
+                  ? `${healthResponse.data.providers.ecdict.entries ?? "未知"} 条`
+                  : "未就绪"
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>uapis</dt>
+            <dd>
+              {{
+                healthResponse.data.providers.uapis.configured
+                  ? "已配置，按需回退"
+                  : "未配置"
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>有道发音</dt>
+            <dd>
+              {{
+                healthResponse.data.providers.youdao.configured
+                  ? "已配置，按需代理"
+                  : "未配置"
+              }}
+            </dd>
+          </div>
+        </dl>
       </article>
     </section>
   </div>

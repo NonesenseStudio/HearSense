@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
   let dictionary = null;
   if (decision.admit && !existing) {
     try {
-      dictionary = await useDictionaryService().lookup(decision.word);
+      dictionary = await useDictionaryService(event).lookup(decision.word);
     } catch {
       dictionary = null;
     }

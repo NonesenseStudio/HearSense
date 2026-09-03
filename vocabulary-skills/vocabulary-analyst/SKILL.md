@@ -56,22 +56,34 @@ Return a valid JSON object:
 
 ```json
 {
-  "period": {"start": "2026-08-01", "end": "2026-08-31"},
-  "sample": {"activated_words": 18, "audio_tests": 74, "natural_reencounters": 11, "observed_days": 24},
+  "period": { "start": "2026-08-01", "end": "2026-08-31" },
+  "sample": {
+    "activated_words": 18,
+    "audio_tests": 74,
+    "natural_reencounters": 11,
+    "observed_days": 24
+  },
   "metrics": {
     "conversion_rate": 0.61,
     "review_pool_stability": 0.88,
     "auditory_retrieval_rate": 0.72,
     "median_retrieval_latency_ms": 1840,
     "natural_reencounter_success": 0.64,
-    "active_pool_trend": {"first": 11, "last": 8, "direction": "down"}
+    "active_pool_trend": { "first": 11, "last": 8, "direction": "down" }
   },
   "confidence": "adequate",
   "findings": [
-    {"finding": "Audio retrieval is improving while backlog is shrinking.", "evidence": ["auditory_retrieval_rate", "active_pool_trend"]}
+    {
+      "finding": "Audio retrieval is improving while backlog is shrinking.",
+      "evidence": ["auditory_retrieval_rate", "active_pool_trend"]
+    }
   ],
   "recommendations": [
-    {"priority": 1, "action": "Keep the current intake cap and continue audio-first testing.", "lever": "maintain"}
+    {
+      "priority": 1,
+      "action": "Keep the current intake cap and continue audio-first testing.",
+      "lever": "maintain"
+    }
   ],
   "data_quality_notes": [],
   "next_skill": "daily-session-planner"

@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: "WORD_NOT_FOUND" });
   let dictionary = null;
   try {
-    dictionary = await useDictionaryService().lookup(word.word);
+    dictionary = await useDictionaryService(event).lookup(word.word);
   } catch {
     dictionary = null;
   }

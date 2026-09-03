@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
   await repository.activateCandidate(word, createId(), nowIso());
   let dictionary = null;
   try {
-    dictionary = await useDictionaryService().lookup(word.word);
+    dictionary = await useDictionaryService(event).lookup(word.word);
   } catch {
     dictionary = null;
   }

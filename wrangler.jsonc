@@ -15,9 +15,15 @@
       "database_id": "d3296b3a-c124-41c2-8bfa-c1d2f442887d",
       "migrations_dir": "migrations",
     },
+    {
+      "binding": "DICTIONARY_DB",
+      "database_name": "hearsense-dictionary",
+      "database_id": "00000000-0000-0000-0000-000000000003",
+    },
   ],
   "vars": {
-    "NUXT_DICTIONARY_BASE_URL": "https://dict.hearsense.top",
+    "NUXT_UAPIS_BASE_URL": "https://uapis.cn",
+    "NUXT_YOUDAO_BASE_URL": "https://dict.youdao.com",
     "NUXT_DICTIONARY_TIMEOUT_MS": "6000",
   },
   "observability": {
@@ -33,9 +39,15 @@
           "database_id": "d3296b3a-c124-41c2-8bfa-c1d2f442887d",
           "migrations_dir": "migrations",
         },
+        {
+          "binding": "DICTIONARY_DB",
+          "database_name": "hearsense-dictionary",
+          "database_id": "e54936fd-eb2d-48c6-8eed-c7bc23067152",
+        },
       ],
       "vars": {
-        "NUXT_DICTIONARY_BASE_URL": "https://dict.hearsense.top",
+        "NUXT_UAPIS_BASE_URL": "https://uapis.cn",
+        "NUXT_YOUDAO_BASE_URL": "https://dict.youdao.com",
         "NUXT_DICTIONARY_TIMEOUT_MS": "6000",
       },
     },

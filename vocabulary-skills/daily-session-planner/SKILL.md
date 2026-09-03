@@ -48,10 +48,22 @@ Return a valid JSON object:
   "active_word_ids": ["w1", "w2", "w3"],
   "new_word_ids": ["c1", "c2", "c3"],
   "session": [
-    {"phase": "rapid_retrieval", "minutes": 3, "word_ids": ["w1", "w2", "w3"]},
-    {"phase": "repair_weak_words", "minutes": 7, "word_ids": ["w1", "w2"]},
-    {"phase": "new_word_intake", "minutes": 6, "word_ids": ["c1", "c2", "c3"]},
-    {"phase": "audio_meaning_test", "minutes": 4, "word_ids": ["w1", "w2", "w3", "c1", "c2", "c3"]}
+    {
+      "phase": "rapid_retrieval",
+      "minutes": 3,
+      "word_ids": ["w1", "w2", "w3"]
+    },
+    { "phase": "repair_weak_words", "minutes": 7, "word_ids": ["w1", "w2"] },
+    {
+      "phase": "new_word_intake",
+      "minutes": 6,
+      "word_ids": ["c1", "c2", "c3"]
+    },
+    {
+      "phase": "audio_meaning_test",
+      "minutes": 4,
+      "word_ids": ["w1", "w2", "w3", "c1", "c2", "c3"]
+    }
   ],
   "reason": "The active pool is below 12, so three new candidates are allowed.",
   "next_skill": "review-evaluator"

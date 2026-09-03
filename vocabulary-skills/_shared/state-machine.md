@@ -2,13 +2,13 @@
 
 ## States
 
-| State | Meaning | Default container | Main action |
-|---|---|---|---|
-| `L0` | Little or no recognition | `candidate_inbox` | Do not activate by default |
-| `L1` | Sound or spelling feels familiar, but meaning is unavailable | `active_review` | Build one semantic anchor and test retrieval |
-| `L2` | Meaning is correct but delayed, vague, or unstable | `active_review` | Repair with audio-first retrieval |
-| `L3` | Core meaning is understood from familiar audio within about 1–2 seconds, stably | `graduated` | Remove from normal active review |
-| `L4` | The learner can naturally produce the word | `graduated` | Optional advanced usage practice |
+| State | Meaning                                                                         | Default container | Main action                                  |
+| ----- | ------------------------------------------------------------------------------- | ----------------- | -------------------------------------------- |
+| `L0`  | Little or no recognition                                                        | `candidate_inbox` | Do not activate by default                   |
+| `L1`  | Sound or spelling feels familiar, but meaning is unavailable                    | `active_review`   | Build one semantic anchor and test retrieval |
+| `L2`  | Meaning is correct but delayed, vague, or unstable                              | `active_review`   | Repair with audio-first retrieval            |
+| `L3`  | Core meaning is understood from familiar audio within about 1–2 seconds, stably | `graduated`       | Remove from normal active review             |
+| `L4`  | The learner can naturally produce the word                                      | `graduated`       | Optional advanced usage practice             |
 
 The product's main conversion is `L1/L2 -> L3`. Production is a separate capability; do not block listening graduation on it.
 

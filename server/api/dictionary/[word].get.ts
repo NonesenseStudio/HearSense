@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     });
 
   try {
-    const entry = await useDictionaryService().lookup(word);
+    const entry = await useDictionaryService(event).lookup(word);
     if (!entry)
       throw createError({
         statusCode: 404,

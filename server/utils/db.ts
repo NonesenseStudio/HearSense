@@ -5,6 +5,7 @@ interface CloudflareContext {
   cloudflare?: {
     env?: {
       DB?: D1Database;
+      DICTIONARY_DB?: D1Database;
     };
   };
 }
@@ -20,4 +21,10 @@ export function getDb(event: H3Event): D1Database {
     });
   }
   return db;
+}
+
+export function getDictionaryDb(event: H3Event): D1Database | null {
+  return (
+    (event.context as CloudflareContext).cloudflare?.env?.DICTIONARY_DB ?? null
+  );
 }

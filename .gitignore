@@ -5,6 +5,7 @@
 .nitro
 .cache
 .wrangler
+.artifacts
 dist
 
 # Node dependencies

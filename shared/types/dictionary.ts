@@ -13,13 +13,35 @@ export interface DictionarySense {
 
 export interface DictionaryLookup {
   headword: string;
+  lemma?: string | null;
   pronunciations: DictionaryPronunciation[];
   senses: DictionarySense[];
+  meta?: {
+    textSource: "ecdict" | "uapis" | "merged";
+    audioSource: "youdao" | "none";
+    degraded: boolean;
+  };
 }
 
 export interface DictionaryHealth {
   available: boolean;
-  status: "ok" | "unavailable" | "invalid_response";
+  status: "ok" | "degraded" | "unavailable" | "invalid_response";
   checkedAt: string;
   detail: string | null;
+  providers?: {
+    ecdict: {
+      available: boolean;
+      version: string | null;
+      entries: number | null;
+      detail: string | null;
+    };
+    uapis: {
+      configured: boolean;
+      detail: string | null;
+    };
+    youdao: {
+      configured: boolean;
+      detail: string | null;
+    };
+  };
 }
