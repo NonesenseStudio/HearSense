@@ -37,7 +37,7 @@ NUXT_DICTIONARY_TIMEOUT_MS=6000
 NUXT_UAPIS_API_KEY=
 ```
 
-`NUXT_ACCESS_PASSWORD` 未配置或过短时应用会拒绝业务请求（API 返回 503），不会默认开放。访问密码和可选的 `NUXT_ACCESS_COOKIE_SECRET` 只在服务端使用；后者应为至少 32 个字符的独立随机值。前端通过 `/api/dictionary/*` 访问统一服务层，不直接拼接外部 URL。uapis key 请使用 `wrangler secret put NUXT_UAPIS_API_KEY --env production`，不要放入 `NUXT_PUBLIC_*`。
+`NUXT_ACCESS_PASSWORD` 未配置或过短时应用会拒绝业务请求（API 返回 503），不会默认开放。访问密码和可选的 `NUXT_ACCESS_COOKIE_SECRET` 只在服务端使用；后者应为至少 32 个字符的独立随机值。前端通过 `/api/dictionary/*` 访问统一服务层，不直接拼接外部 URL。uapis key 请使用 `wrangler secret put NUXT_UAPIS_API_KEY`，不要放入 `NUXT_PUBLIC_*`。
 
 ## 本地开发
 
@@ -88,12 +88,12 @@ pnpm db:migrate:remote
 pnpm run deploy
 ```
 
-生产与开发配置分别位于 `wrangler.jsonc` 默认段和 `env.production`。部署前必须替换两个生产 D1 ID，并配置访问保护和 uapis key：
+项目只部署到现有 Worker `hearsense`；`wrangler.jsonc` 的默认配置用于远程部署和生产 D1 binding，本地命令会使用 Wrangler 的本地 D1 副本。部署前必须替换两个生产 D1 ID，并配置访问保护和 uapis key：
 
 ```bash
-wrangler secret put NUXT_ACCESS_PASSWORD --env production
-wrangler secret put NUXT_ACCESS_COOKIE_SECRET --env production  # 可选，但建议配置
-wrangler secret put NUXT_UAPIS_API_KEY --env production         # 可选
+wrangler secret put NUXT_ACCESS_PASSWORD
+wrangler secret put NUXT_ACCESS_COOKIE_SECRET  # 可选，但建议配置
+wrangler secret put NUXT_UAPIS_API_KEY         # 可选
 ```
 
 仓库不会包含 Cloudflare token、访问密码或其他密钥。访问锁使用同源检查、SameSite=Strict 的 HttpOnly 签名会话和登录失败限速；设置页也提供“锁定应用”。

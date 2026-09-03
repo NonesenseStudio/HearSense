@@ -30,28 +30,4 @@
   "observability": {
     "enabled": true,
   },
-  "env": {
-    "production": {
-      "name": "hearsense-production",
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "hearsense",
-          "database_id": "d3296b3a-c124-41c2-8bfa-c1d2f442887d",
-          "migrations_dir": "migrations",
-        },
-        {
-          "binding": "DICTIONARY_DB",
-          "database_name": "hearsense-dictionary",
-          "database_id": "e54936fd-eb2d-48c6-8eed-c7bc23067152",
-        },
-      ],
-      "vars": {
-        "NUXT_ACCESS_SESSION_TTL_SECONDS": "604800",
-        "NUXT_UAPIS_BASE_URL": "https://uapis.cn",
-        "NUXT_YOUDAO_BASE_URL": "https://dict.youdao.com",
-        "NUXT_DICTIONARY_TIMEOUT_MS": "6000",
-      },
-    },
-  },
 }
