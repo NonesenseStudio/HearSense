@@ -23,6 +23,12 @@ export interface DictionaryLookup {
   };
 }
 
+export interface DictionarySuggestion {
+  headword: string;
+  phonetic: string | null;
+  definitionZh: string | null;
+}
+
 export interface DictionaryHealth {
   available: boolean;
   status: "ok" | "degraded" | "unavailable" | "invalid_response";

@@ -192,4 +192,44 @@ describe("DictionaryService", () => {
       }),
     );
   });
+
+  it("returns ranked local prefix suggestions without calling a remote provider", async () => {
+    const all = vi.fn(async () => ({
+      results: [
+        {
+          headword: "astonish",
+          phonetic: "əˈstɒnɪʃ",
+          definition_zh: "v 使惊讶",
+        },
+        {
+          headword: "astonished",
+          phonetic: null,
+          definition_zh: "adj. 感到惊讶的\\n",
+        },
+      ],
+    }));
+    const bind = vi.fn(() => ({ all }));
+    const prepare = vi.fn(() => ({ bind }));
+    const fetcher = vi.fn();
+    const result = await new DictionaryService({
+      dictionaryDb: { prepare } as never,
+      uapisBaseUrl: "https://uapis.example",
+      fetcher,
+    }).suggest("  AST ");
+
+    expect(result).toEqual([
+      {
+        headword: "astonish",
+        phonetic: "əˈstɒnɪʃ",
+        definitionZh: "使惊讶",
+      },
+      {
+        headword: "astonished",
+        phonetic: null,
+        definitionZh: "感到惊讶的",
+      },
+    ]);
+    expect(bind).toHaveBeenCalledWith("ast%", "ast", 8);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });

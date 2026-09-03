@@ -1,0 +1,13 @@
+.git
+.nuxt
+.output
+.wrangler
+.pnpm-store
+.artifacts
+node_modules
+.idea
+.data
+.nitro
+.cache
+dist
+pnpm-lock.yaml

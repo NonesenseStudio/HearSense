@@ -54,8 +54,8 @@ function isCoreRow(row) {
   const frq = optionalRank(row.frq);
   return Boolean(
     (bnc && bnc <= CORE_RANK_LIMIT) ||
-    (frq && frq <= CORE_RANK_LIMIT) ||
-    optionalText(row.tag),
+      (frq && frq <= CORE_RANK_LIMIT) ||
+      optionalText(row.tag),
   );
 }
 

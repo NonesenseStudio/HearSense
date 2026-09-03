@@ -5,6 +5,7 @@ import type {
   SemanticCard,
   WordRecord,
 } from "~~/shared/types/vocabulary";
+import type { DictionarySuggestion } from "~~/shared/types/dictionary";
 
 useSeoMeta({ title: "录入单词" });
 
@@ -14,6 +15,12 @@ interface IntakeResponse {
     decision: IntakeDecision;
     cardDraft: SemanticCardDraft | null;
     activeReviewCountBefore: number;
+  };
+}
+
+interface SuggestionsResponse {
+  data: {
+    items: DictionarySuggestion[];
   };
 }
 
@@ -38,7 +45,18 @@ const cardSaved = shallowRef<SemanticCard | null>(null);
 const queuedOffline = shallowRef(false);
 const queuedSynced = shallowRef(false);
 const queuedClientEventId = shallowRef<string | null>(null);
+const suggestions = shallowRef<DictionarySuggestion[]>([]);
+const suggestionsOpen = shallowRef(false);
+const suggestionsLoading = shallowRef(false);
+const highlightedSuggestion = shallowRef(-1);
 const { queue, enqueue } = useOfflineQueue();
+
+const suggestionPattern = /^[A-Za-z][A-Za-z\s'-]*$/;
+let suggestionTimer: ReturnType<typeof setTimeout> | undefined;
+let suggestionCloseTimer: ReturnType<typeof setTimeout> | undefined;
+let suggestionRequestId = 0;
+let suggestionAbortController: AbortController | null = null;
+let suppressSuggestionFetch = false;
 
 watch(queue, (items) => {
   if (
@@ -57,6 +75,138 @@ function errorMessage(cause: unknown): string {
   }
   return "请求失败，请稍后重试。";
 }
+
+function normalizeSuggestionQuery(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+function clearSuggestionTimer() {
+  if (suggestionTimer) clearTimeout(suggestionTimer);
+  suggestionTimer = undefined;
+}
+
+function cancelSuggestionRequest() {
+  suggestionAbortController?.abort();
+  suggestionAbortController = null;
+}
+
+function openSuggestions() {
+  if (suggestions.value.length || suggestionsLoading.value)
+    suggestionsOpen.value = true;
+}
+
+function scheduleSuggestionClose() {
+  if (suggestionCloseTimer) clearTimeout(suggestionCloseTimer);
+  suggestionCloseTimer = setTimeout(() => {
+    suggestionsOpen.value = false;
+    highlightedSuggestion.value = -1;
+  }, 120);
+}
+
+async function loadSuggestions(query: string, requestId: number) {
+  if (requestId !== suggestionRequestId) return;
+  const controller = new AbortController();
+  suggestionAbortController = controller;
+  suggestionsLoading.value = true;
+  try {
+    const response = await $fetch<SuggestionsResponse>(
+      "/api/dictionary/suggest",
+      {
+        query: { q: query, limit: 8 },
+        signal: controller.signal,
+      },
+    );
+    if (requestId !== suggestionRequestId || controller.signal.aborted) return;
+    suggestions.value = response.data.items;
+    suggestionsOpen.value = suggestions.value.length > 0;
+    highlightedSuggestion.value = -1;
+  } catch {
+    if (requestId !== suggestionRequestId || controller.signal.aborted) return;
+    suggestions.value = [];
+    suggestionsOpen.value = false;
+  } finally {
+    if (requestId === suggestionRequestId) {
+      suggestionsLoading.value = false;
+      suggestionAbortController = null;
+    }
+  }
+}
+
+watch(
+  () => form.value.word,
+  (value) => {
+    clearSuggestionTimer();
+    cancelSuggestionRequest();
+    const requestId = ++suggestionRequestId;
+    highlightedSuggestion.value = -1;
+
+    if (suppressSuggestionFetch) {
+      suppressSuggestionFetch = false;
+      suggestions.value = [];
+      suggestionsOpen.value = false;
+      suggestionsLoading.value = false;
+      return;
+    }
+
+    const query = normalizeSuggestionQuery(value);
+    suggestions.value = [];
+    suggestionsOpen.value = Boolean(query);
+    suggestionsLoading.value = false;
+    if (!query || !suggestionPattern.test(query)) {
+      suggestionsOpen.value = false;
+      return;
+    }
+
+    suggestionTimer = setTimeout(() => {
+      void loadSuggestions(query, requestId);
+    }, 180);
+  },
+);
+
+function selectSuggestion(headword: string) {
+  if (suggestionCloseTimer) clearTimeout(suggestionCloseTimer);
+  clearSuggestionTimer();
+  cancelSuggestionRequest();
+  suggestionRequestId += 1;
+  suppressSuggestionFetch = form.value.word !== headword;
+  form.value.word = headword;
+  suggestions.value = [];
+  suggestionsOpen.value = false;
+  suggestionsLoading.value = false;
+  highlightedSuggestion.value = -1;
+}
+
+function handleSuggestionKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    suggestionsOpen.value = false;
+    highlightedSuggestion.value = -1;
+    return;
+  }
+  if (!suggestions.value.length) return;
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    suggestionsOpen.value = true;
+    highlightedSuggestion.value =
+      (highlightedSuggestion.value + 1) % suggestions.value.length;
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    suggestionsOpen.value = true;
+    highlightedSuggestion.value =
+      highlightedSuggestion.value <= 0
+        ? suggestions.value.length - 1
+        : highlightedSuggestion.value - 1;
+  } else if (event.key === "Enter" && highlightedSuggestion.value >= 0) {
+    event.preventDefault();
+    const suggestion = suggestions.value[highlightedSuggestion.value];
+    if (suggestion) selectSuggestion(suggestion.headword);
+  }
+}
+
+onBeforeUnmount(() => {
+  clearSuggestionTimer();
+  if (suggestionCloseTimer) clearTimeout(suggestionCloseTimer);
+  cancelSuggestionRequest();
+});
 
 async function submit() {
   submitting.value = true;
@@ -141,18 +291,83 @@ async function saveCard() {
 
     <form class="card card__body" @submit.prevent="submit">
       <div class="form-grid">
-        <div class="field">
-          <label for="word">英文单词或短语 *</label
-          ><input
-            id="word"
-            v-model="form.word"
-            required
-            type="text"
-            maxlength="100"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="例如 astonish"
-          />
+        <div class="field word-field">
+          <label for="word">英文单词或短语 *</label>
+          <div class="word-suggest">
+            <input
+              id="word"
+              v-model="form.word"
+              required
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+              spellcheck="false"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="word-suggestion-list"
+              :aria-expanded="
+                suggestionsOpen &&
+                (suggestionsLoading || suggestions.length > 0)
+              "
+              :aria-activedescendant="
+                highlightedSuggestion >= 0
+                  ? `word-suggestion-${highlightedSuggestion}`
+                  : undefined
+              "
+              placeholder="例如 astonish"
+              @focus="openSuggestions"
+              @blur="scheduleSuggestionClose"
+              @keydown="handleSuggestionKeydown"
+            />
+            <ul
+              v-if="
+                suggestionsOpen &&
+                (suggestionsLoading || suggestions.length > 0)
+              "
+              id="word-suggestion-list"
+              class="word-suggest__list"
+              role="listbox"
+              aria-label="单词联想"
+            >
+              <li v-if="suggestionsLoading" class="word-suggest__loading">
+                正在联想…
+              </li>
+              <li
+                v-for="(suggestion, index) in suggestions"
+                :id="`word-suggestion-${index}`"
+                :key="suggestion.headword"
+                role="option"
+                :aria-selected="highlightedSuggestion === index"
+              >
+                <button
+                  class="word-suggest__option"
+                  :class="{
+                    'word-suggest__option--active':
+                      highlightedSuggestion === index,
+                  }"
+                  type="button"
+                  @mousedown.prevent
+                  @click="selectSuggestion(suggestion.headword)"
+                >
+                  <span class="word-suggest__word">
+                    {{ suggestion.headword }}
+                  </span>
+                  <span
+                    v-if="suggestion.phonetic"
+                    class="word-suggest__phonetic"
+                  >
+                    {{ suggestion.phonetic }}
+                  </span>
+                  <span
+                    v-if="suggestion.definitionZh"
+                    class="word-suggest__definition"
+                  >
+                    {{ suggestion.definitionZh }}
+                  </span>
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="field">
           <label for="source">来源</label

@@ -1,13 +1,17 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
-  devtools: { enabled: true },
+  // The deployed app is single-user; do not expose Nuxt DevTools in production.
+  devtools: { enabled: false },
   modules: ["@vite-pwa/nuxt"],
   nitro: {
     preset: "cloudflare_module",
     cloudflare: { deployConfig: false, nodeCompat: true },
   },
   runtimeConfig: {
+    accessPassword: "",
+    accessCookieSecret: "",
+    accessSessionTtlSeconds: 604800,
     uapisBaseUrl: "https://uapis.cn",
     uapisApiKey: "",
     youdaoBaseUrl: "https://dict.youdao.com",
@@ -61,27 +65,9 @@ export default defineNuxtConfig({
     workbox: {
       navigateFallback: null,
       globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
-      runtimeCaching: [
-        {
-          urlPattern: /^https?:\/\/[^/]+\/api\//,
-          handler: "NetworkFirst",
-          options: {
-            cacheName: "hearsense-api-v1",
-            networkTimeoutSeconds: 4,
-            cacheableResponse: { statuses: [0, 200] },
-            expiration: { maxEntries: 80, maxAgeSeconds: 7 * 24 * 60 * 60 },
-          },
-        },
-        {
-          urlPattern: /^https?:\/\/[^/]+\/(?!api\/)/,
-          handler: "NetworkFirst",
-          options: {
-            cacheName: "hearsense-pages-v1",
-            networkTimeoutSeconds: 4,
-            expiration: { maxEntries: 30, maxAgeSeconds: 7 * 24 * 60 * 60 },
-          },
-        },
-      ],
+      // Do not cache authenticated API responses or SSR pages in a shared
+      // browser cache. The offline event queue remains available separately.
+      runtimeCaching: [],
     },
   },
 });

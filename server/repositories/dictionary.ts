@@ -13,6 +13,12 @@ export interface DictionaryEntryRow {
   source_version: string;
 }
 
+export interface DictionarySuggestionRow {
+  headword: string;
+  phonetic: string | null;
+  definition_zh: string | null;
+}
+
 export interface DictionaryMeta {
   sourceVersion: string | null;
   entries: number | null;
@@ -22,6 +28,13 @@ type DictionaryDatabase = Pick<D1Database, "prepare">;
 
 export function normalizeDictionaryKey(word: string): string {
   return word.normalize("NFKC").trim().toLowerCase();
+}
+
+function escapeLikePattern(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("%", "\\%")
+    .replaceAll("_", "\\_");
 }
 
 export class DictionaryRepository {
@@ -41,6 +54,37 @@ export class DictionaryRepository {
       )
       .bind(word)
       .first<DictionaryEntryRow>();
+  }
+
+  async findByPrefix(
+    rawPrefix: string,
+    limit = 8,
+  ): Promise<DictionarySuggestionRow[]> {
+    if (!this.db) return [];
+    const prefix = normalizeDictionaryKey(rawPrefix).replace(/\s+/g, " ");
+    if (!prefix) return [];
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(20, Math.max(1, Math.trunc(limit)))
+      : 8;
+    const pattern = `${escapeLikePattern(prefix)}%`;
+    const result = await this.db
+      .prepare(
+        `SELECT headword, phonetic, definition_zh
+           FROM dictionary_entries
+          WHERE word_key LIKE ?1 ESCAPE '\\'
+          ORDER BY
+            CASE WHEN word_key = ?2 THEN 0 ELSE 1 END,
+            CASE WHEN bnc IS NULL THEN 1 ELSE 0 END,
+            bnc ASC,
+            CASE WHEN frq IS NULL THEN 1 ELSE 0 END,
+            frq ASC,
+            length(word_key) ASC,
+            word_key ASC
+          LIMIT ?3`,
+      )
+      .bind(pattern, prefix, safeLimit)
+      .all<DictionarySuggestionRow>();
+    return result.results;
   }
 
   async meta(): Promise<DictionaryMeta> {

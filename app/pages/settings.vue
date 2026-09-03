@@ -9,6 +9,8 @@ const form = ref<AppSettings>({ ...settings.value });
 const saved = shallowRef(false);
 const { online, queue, syncing, lastSyncAt, flush } = useOfflineQueue();
 const { $pwa } = useNuxtApp();
+const locking = shallowRef(false);
+const lockError = shallowRef<string | null>(null);
 const {
   data: healthResponse,
   status: healthStatus,
@@ -30,6 +32,24 @@ function saveSettings() {
 
 async function installPwa() {
   await $pwa?.install();
+}
+
+async function lockApp() {
+  if (locking.value) return;
+  locking.value = true;
+  lockError.value = null;
+  try {
+    await $fetch("/api/access/logout", { method: "POST" });
+    await navigateTo(
+      { path: "/access", query: { locked: "1" } },
+      { replace: true },
+    );
+  } catch (cause) {
+    lockError.value =
+      cause instanceof Error ? cause.message : "锁定失败，请重试。";
+  } finally {
+    locking.value = false;
+  }
 }
 </script>
 
@@ -76,6 +96,32 @@ async function installPwa() {
         ><button class="button" type="submit">保存设置</button>
       </div>
     </form>
+
+    <section
+      class="card card__body security-panel"
+      aria-labelledby="security-title"
+    >
+      <div>
+        <p class="eyebrow">PRIVATE ACCESS</p>
+        <h2 id="security-title">访问保护</h2>
+        <p class="page-subtitle">
+          暂时离开时锁定应用；锁定后会清除当前浏览器的访问 Cookie。
+        </p>
+      </div>
+      <div class="form-actions">
+        <span v-if="lockError" class="field-error" role="alert">{{
+          lockError
+        }}</span>
+        <button
+          class="button button--tonal"
+          type="button"
+          :disabled="locking"
+          @click="lockApp"
+        >
+          {{ locking ? "锁定中…" : "锁定应用" }}
+        </button>
+      </div>
+    </section>
 
     <section class="settings-grid">
       <article class="card card__body status-panel">

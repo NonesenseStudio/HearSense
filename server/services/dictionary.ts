@@ -5,10 +5,12 @@ import type {
   DictionaryLookup,
   DictionaryPronunciation,
   DictionarySense,
+  DictionarySuggestion,
 } from "~~/shared/types/dictionary";
 import {
   DictionaryRepository,
   type DictionaryEntryRow,
+  type DictionarySuggestionRow,
 } from "../repositories/dictionary";
 
 const legacyEnvelopeSchema = z
@@ -227,6 +229,20 @@ function parseEcdictRow(row: DictionaryEntryRow): DictionaryLookup {
       audioSource: "none",
       degraded: false,
     },
+  };
+}
+
+function firstDefinitionZh(value: string | null): string | null {
+  const firstLine = splitLines(value)[0];
+  if (!firstLine) return null;
+  return parsePosLine(firstLine).text || null;
+}
+
+function mapSuggestion(row: DictionarySuggestionRow): DictionarySuggestion {
+  return {
+    headword: row.headword,
+    phonetic: row.phonetic,
+    definitionZh: firstDefinitionZh(row.definition_zh),
   };
 }
 
@@ -469,8 +485,8 @@ export class DictionaryService {
       options.enrich ??
       Boolean(
         local &&
-        (!local.senses.some((sense) => sense.definitionEn) ||
-          !local.pronunciations.some((item) => item.ipa)),
+          (!local.senses.some((sense) => sense.definitionEn) ||
+            !local.pronunciations.some((item) => item.ipa)),
       );
     if (local && !shouldEnrich) return local;
 
@@ -498,6 +514,17 @@ export class DictionaryService {
         };
       }
       throw error;
+    }
+  }
+
+  async suggest(rawPrefix: string, limit = 8): Promise<DictionarySuggestion[]> {
+    try {
+      const rows = await this.repository.findByPrefix(rawPrefix, limit);
+      return rows.map(mapSuggestion);
+    } catch {
+      // Suggestions are an optional convenience. A missing or unavailable
+      // local dictionary must not prevent the intake form from being used.
+      return [];
     }
   }
 

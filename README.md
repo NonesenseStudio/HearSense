@@ -25,9 +25,11 @@ HearSense 是一个以“听到声音后理解核心含义”为目标的英语�
 pnpm install
 ```
 
-复制 `.env.example` 为 `.env` 可覆盖本地 uapis 与有道设置：
+复制 `.env.example` 为 `.env`，并设置个人访问密码：
 
 ```dotenv
+NUXT_ACCESS_PASSWORD=至少 16 个字符的随机长密码
+NUXT_ACCESS_SESSION_TTL_SECONDS=604800
 NUXT_UAPIS_BASE_URL=https://uapis.cn
 NUXT_YOUDAO_BASE_URL=https://dict.youdao.com
 NUXT_DICTIONARY_TIMEOUT_MS=6000
@@ -35,7 +37,7 @@ NUXT_DICTIONARY_TIMEOUT_MS=6000
 NUXT_UAPIS_API_KEY=
 ```
 
-这些值只在服务端使用。前端通过 `/api/dictionary/*` 访问统一服务层，不直接拼接外部 URL。uapis key 请使用 `wrangler secret put NUXT_UAPIS_API_KEY --env production`，不要放入 `NUXT_PUBLIC_*`。
+`NUXT_ACCESS_PASSWORD` 未配置或过短时应用会拒绝业务请求（API 返回 503），不会默认开放。访问密码和可选的 `NUXT_ACCESS_COOKIE_SECRET` 只在服务端使用；后者应为至少 32 个字符的独立随机值。前端通过 `/api/dictionary/*` 访问统一服务层，不直接拼接外部 URL。uapis key 请使用 `wrangler secret put NUXT_UAPIS_API_KEY --env production`，不要放入 `NUXT_PUBLIC_*`。
 
 ## 本地开发
 
@@ -86,11 +88,19 @@ pnpm db:migrate:remote
 pnpm deploy
 ```
 
-生产与开发配置分别位于 `wrangler.jsonc` 默认段和 `env.production`。部署前必须替换两个生产 D1 ID，并使用 secret 配置 uapis key；仓库不会包含 Cloudflare token 或其他密钥。
+生产与开发配置分别位于 `wrangler.jsonc` 默认段和 `env.production`。部署前必须替换两个生产 D1 ID，并配置访问保护和 uapis key：
+
+```bash
+wrangler secret put NUXT_ACCESS_PASSWORD --env production
+wrangler secret put NUXT_ACCESS_COOKIE_SECRET --env production  # 可选，但建议配置
+wrangler secret put NUXT_UAPIS_API_KEY --env production         # 可选
+```
+
+仓库不会包含 Cloudflare token、访问密码或其他密钥。访问锁使用同源检查、SameSite=Strict 的 HttpOnly 签名会话和登录失败限速；设置页也提供“锁定应用”。
 
 ## PWA 与离线策略
 
-- 安装时预缓存应用静态资源；已访问页面以及成功读取的 `/api/cards`、`/api/reviews/recent`、`/api/analytics` 等 GET 响应采用 NetworkFirst，并保留七天。
+- 安装时只预缓存应用静态资源；个人 API 响应和 SSR 页面不进入 Service Worker 缓存，避免在共享浏览器缓存中留下学习数据。
 - 离线录入和复习事件写入浏览器 IndexedDB，界面明确显示“尚未写入 D1”，不会提前变更状态或声称同步成功。
 - 应用保持打开时，`online` 事件会按创建顺序重放；也可在设置页手动同步。稳定 `clientEventId` 和数据库唯一约束保证幂等，离线重放另写入 `synced_offline_events` 供审计。
 - 同步失败的事件继续保留在本机并展示待处理数量。
@@ -98,6 +108,8 @@ pnpm deploy
 ## 词典服务
 
 词典采用 ECDICT + uapis provider 链：`DICTIONARY_DB` 中的 ECDICT 核心词条负责低延迟文本查询，ECDICT 缺少英文释义/音标或未命中时才调用 uapis lookup；发音统一通过 `/api/dictionary/audio/:word` 代理有道 `dictvoice`，`type=1` 为英音、`type=2` 为美音，失败时降级为系统语音。
+
+录入页的单词输入联想使用 `GET /api/dictionary/suggest?q=ast&limit=8`，仅查询本地 ECDICT 前缀索引，返回最多 20 个精简候选项；词典未绑定或查询失败时返回空列表，不影响正常录入。
 
 `server/services/dictionary.ts` 统一处理供应商选择、超时、HTTP 错误、空结果和响应校验。词典数据只用于生成可编辑的语义卡草稿，不参与状态判断，也不会把全部义项直接放入首屏。
 
@@ -116,10 +128,11 @@ pnpm preview            # Wrangler 预览现有构建
 
 ## 已知限制
 
-- 当前是单用户原型，没有身份认证或跨账号数据隔离；正式公开部署前必须增加认证与用户维度。
+- 当前访问保护是单用户共享密码，不是多用户身份系统；如果要把地址暴露到公网，建议在 Cloudflare 前再配置 Access 或 IP 允许列表。
 - IndexedDB 队列只存在当前浏览器；关闭应用后不会依赖浏览器 Background Sync 静默提交，需再次打开应用并联网。
 - 离线支持录入与复习事件；新建/编辑语义卡和创建学习会话仍要求在线。
-- 只有曾在线打开并缓存过的词卡、近期记录和分析范围可离线查看；缓存不是 D1 的完整备份。
+- 为保护个人数据，已关闭 API 与 SSR 页面离线缓存；网络不可用时只能继续处理当前已打开页面中的状态和离线事件队列。
+- 登录失败限速使用 Worker 实例内存，在多实例/多地区环境下只能作为第一层防护；公网部署仍应叠加 Cloudflare Access、WAF 或 IP 限制。
 - ECDICT 当前没有可用音频字段；有道音频依赖第三方可用性，失败时使用系统语音；uapis 仅用于文本补全并受 credits、4 QPS 限制。
 - `wrangler.jsonc` 中 `DICTIONARY_DB` 生产 ID 是占位符，替换前不能执行远程词典导入或正式部署。
 - 完整 ECDICT 导入建议使用 Workers Paid 或分批执行；免费版 D1 的每日 rows written 可能不足以一次导入全部词条。
