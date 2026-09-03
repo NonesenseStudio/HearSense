@@ -85,7 +85,7 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm db:migrate:remote
-pnpm deploy
+pnpm run deploy
 ```
 
 生产与开发配置分别位于 `wrangler.jsonc` 默认段和 `env.production`。部署前必须替换两个生产 D1 ID，并配置访问保护和 uapis key：
