@@ -21,6 +21,14 @@ interface CandidateResponse {
   };
 }
 
+const learningStateLabels: Record<WordRecord["state"], string> = {
+  L0: "暂不熟悉",
+  L1: "声音熟、词义不稳",
+  L2: "词义想得慢",
+  L3: "听到即懂",
+  L4: "能够自然使用",
+};
+
 const {
   data: response,
   status,
@@ -130,7 +138,9 @@ async function defer(item: CandidateItem) {
           class="card candidate-row"
         >
           <div class="candidate-row__word">
-            <span class="status-chip">{{ item.word.state }}</span>
+            <span class="status-chip">{{
+              learningStateLabels[item.word.state]
+            }}</span>
             <h2>{{ item.word.wordDisplay }}</h2>
             <small>优先级 {{ item.priority ?? "未计算" }}</small>
           </div>
@@ -143,8 +153,8 @@ async function defer(item: CandidateItem) {
                 {{ reason }}
               </li>
             </ul>
-            <p v-if="item.clarifyingQuestion" class="notice">
-              <strong>待确认：</strong>{{ item.clarifyingQuestion }}
+            <p v-if="item.needsClarification" class="notice">
+              录入时对此词的听音理解还不确定，系统会先保守放在候选箱。
             </p>
           </div>
           <div class="candidate-row__actions">

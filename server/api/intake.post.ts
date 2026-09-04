@@ -60,14 +60,18 @@ export default defineEventHandler(async (event) => {
     data: {
       word,
       decision,
-      cardDraft: decision.admit
-        ? buildSemanticCardDraft({
-            word: decision.word,
-            source: word.source,
-            sourceContext: word.sourceContext,
-            dictionary,
-          })
-        : null,
+      // Existing active words already have a learning path. Do not force a
+      // second card on every natural re-encounter; a new sense can still be
+      // added intentionally from the semantic-cards page.
+      cardDraft:
+        decision.admit && !existing
+          ? buildSemanticCardDraft({
+              word: decision.word,
+              source: word.source,
+              sourceContext: word.sourceContext,
+              dictionary,
+            })
+          : null,
       activeReviewCountBefore: activeReviewCount,
     },
   };

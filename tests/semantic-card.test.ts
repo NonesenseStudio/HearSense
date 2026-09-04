@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildSemanticCardDraft } from "../shared/domain/semantic-card";
+import {
+  applySemanticSense,
+  buildSemanticCardDraft,
+} from "../shared/domain/semantic-card";
 
 describe("semantic card draft", () => {
   it("prefers learner context and uses only one dictionary sense", () => {
@@ -29,9 +32,11 @@ describe("semantic card draft", () => {
       },
     });
     expect(result.anchorSentence).toBe("You never cease to astonish me.");
-    expect(result.semanticScene).toBe("You never cease to astonish me.");
+    expect(result.semanticScene).toContain("非常惊讶");
     expect(result.coreMeaningEn).toBe("to surprise someone greatly");
     expect(result.exampleOrigin).toBe("learner_source");
+    expect(result.senseOptions).toHaveLength(2);
+    expect(applySemanticSense(result, 1).coreMeaningEn).toBe("another sense");
   });
 
   it("leaves unavailable content blank and never invents IPA", () => {

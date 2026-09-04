@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import type { SemanticCardDraft } from "~~/shared/domain/semantic-card";
+import {
+  applySemanticSense,
+  type SemanticCardDraft,
+} from "~~/shared/domain/semantic-card";
 import type {
   IntakeDecision,
   SemanticCard,
@@ -29,10 +32,8 @@ const form = ref({
   source: "" as "" | WordRecord["source"],
   sourceContext: "",
   learnerReport: "",
-  encounterCount: 1,
-  heardBefore: "unknown" as "unknown" | "yes" | "no",
-  seenBefore: "unknown" as "unknown" | "yes" | "no",
-  meaningRecall: "unknown" as "none" | "vague" | "slow" | "instant" | "unknown",
+  encounterCount: 1 as number | null,
+  meaningRecall: "" as "none" | "vague" | "slow" | "instant" | "unknown" | "",
   audioFamiliarity: "unknown" as WordRecord["audioFamiliarity"],
   personalRelevance: "unknown" as WordRecord["personalRelevance"],
 });
@@ -42,6 +43,7 @@ const result = shallowRef<IntakeResponse["data"] | null>(null);
 const cardForm = ref<SemanticCardDraft | null>(null);
 const savingCard = shallowRef(false);
 const cardSaved = shallowRef<SemanticCard | null>(null);
+const cardDeferred = shallowRef(false);
 const queuedOffline = shallowRef(false);
 const queuedSynced = shallowRef(false);
 const queuedClientEventId = shallowRef<string | null>(null);
@@ -50,6 +52,32 @@ const suggestionsOpen = shallowRef(false);
 const suggestionsLoading = shallowRef(false);
 const highlightedSuggestion = shallowRef(-1);
 const { queue, enqueue } = useOfflineQueue();
+
+const cardComplete = computed(() => {
+  const card = cardForm.value;
+  return Boolean(
+    card &&
+      card.coreMeaningEn.trim() &&
+      card.coreMeaningZh.trim() &&
+      card.anchorSentence.trim() &&
+      card.semanticScene.trim() &&
+      card.retrievalPrompt.trim(),
+  );
+});
+
+const classificationLabels: Record<IntakeDecision["classification"], string> = {
+  L0: "暂不熟悉",
+  L1: "声音熟、词义不稳",
+  L2: "词义想得慢",
+  L3: "听到即懂",
+  L4: "能够自然使用",
+};
+
+const containerLabels: Record<IntakeDecision["container"], string> = {
+  candidate_inbox: "候选箱",
+  active_review: "主动复习",
+  graduated: "已掌握",
+};
 
 const suggestionPattern = /^[A-Za-z][A-Za-z\s'-]*$/;
 let suggestionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -202,6 +230,20 @@ function handleSuggestionKeydown(event: KeyboardEvent) {
   }
 }
 
+function selectSense(index: number) {
+  if (cardForm.value)
+    cardForm.value = applySemanticSense(cardForm.value, index);
+}
+
+function handleSenseChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  selectSense(Number(target.value));
+}
+
+function deferCard() {
+  cardDeferred.value = true;
+}
+
 onBeforeUnmount(() => {
   clearSuggestionTimer();
   if (suggestionCloseTimer) clearTimeout(suggestionCloseTimer);
@@ -216,6 +258,8 @@ async function submit() {
   queuedSynced.value = false;
   queuedClientEventId.value = null;
   cardSaved.value = null;
+  cardDeferred.value = false;
+  cardForm.value = null;
   const payload = {
     clientEventId: crypto.randomUUID(),
     word: form.value.word,
@@ -223,15 +267,11 @@ async function submit() {
     sourceContext: form.value.sourceContext || null,
     learnerReport: form.value.learnerReport || null,
     encounterCount: form.value.encounterCount,
-    heardBefore:
-      form.value.heardBefore === "unknown"
-        ? null
-        : form.value.heardBefore === "yes",
-    seenBefore:
-      form.value.seenBefore === "unknown"
-        ? null
-        : form.value.seenBefore === "yes",
-    meaningRecall: form.value.meaningRecall,
+    // The intake UI asks one plain-language audio-familiarity question. Keep
+    // the legacy fields null rather than asking the same thing twice.
+    heardBefore: null,
+    seenBefore: null,
+    meaningRecall: form.value.meaningRecall || "unknown",
     audioFamiliarity: form.value.audioFamiliarity,
     personalRelevance: form.value.personalRelevance,
     occurredAt: new Date().toISOString(),
@@ -260,7 +300,7 @@ async function submit() {
 }
 
 async function saveCard() {
-  if (!result.value || !cardForm.value) return;
+  if (!result.value || !cardForm.value || !cardComplete.value) return;
   savingCard.value = true;
   submitError.value = null;
   try {
@@ -284,7 +324,7 @@ async function saveCard() {
         <p class="eyebrow">WORD INTAKE</p>
         <h1>记录一次真实遇见</h1>
         <p class="page-subtitle">
-          系统关注这个词与你的真实关系，而不是它看起来有多高级。信息不够时只会追问一个问题。
+          只记录你当下能判断的事实；不记得意思、原句或次数都没关系，系统会保守处理。
         </p>
       </div>
     </header>
@@ -388,82 +428,68 @@ async function saveCard() {
           </select>
         </div>
         <div class="field form-grid__full">
-          <label for="context">原始句子或场景</label
+          <label for="context">当时的原句或场景（可选）</label
           ><textarea
             id="context"
             v-model="form.sourceContext"
             maxlength="2000"
-            placeholder="尽量保留当时听到或看到的上下文"
+            placeholder="记得原句就贴原句；只记得画面或对话片段也可以"
           />
         </div>
         <div class="field form-grid__full">
-          <label for="report">你当时的感受</label
+          <label for="report">哪里卡住了（可选）</label
           ><textarea
             id="report"
             v-model="form.learnerReport"
             maxlength="1000"
-            placeholder="例如：声音很熟，但完全想不起意思"
+            placeholder="例如：声音很熟，但想不起意思；或只记得大概语气"
           />
         </div>
         <div class="field">
-          <label for="encounters">大约遇到次数</label
-          ><input
-            id="encounters"
-            v-model.number="form.encounterCount"
-            type="number"
-            min="0"
-            max="10000"
-          />
+          <label for="encounters">大概遇到过几次（可选）</label
+          ><select id="encounters" v-model="form.encounterCount">
+            <option :value="1">第一次</option>
+            <option :value="2">两次左右</option>
+            <option :value="3">三次左右</option>
+            <option :value="5">四次以上</option>
+            <option :value="null">记不清</option>
+          </select>
         </div>
         <div class="field">
-          <label for="meaning">含义回忆情况 *</label
+          <label for="meaning">只听声音时的理解程度 *</label
           ><select id="meaning" v-model="form.meaningRecall" required>
-            <option value="unknown">还不确定</option>
-            <option value="none">想不起来</option>
+            <option value="" disabled>请选择最接近的一项</option>
+            <option value="none">完全想不起意思</option>
             <option value="vague">只有模糊感觉</option>
-            <option value="slow">能想起，但超过约 2 秒</option>
-            <option value="instant">听到后立即理解</option>
+            <option value="slow">想一会儿才能说出</option>
+            <option value="instant">听到就能理解</option>
+            <option value="unknown">现在还不确定</option>
           </select>
+          <span class="field-hint">不确定也可以选，系统不会因此强行激活。</span>
         </div>
         <div class="field">
-          <label for="heard">以前听过吗</label
-          ><select id="heard" v-model="form.heardBefore">
-            <option value="unknown">不确定</option>
-            <option value="yes">听过</option>
-            <option value="no">没听过</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="seen">以前见过拼写吗</label
-          ><select id="seen" v-model="form.seenBefore">
-            <option value="unknown">不确定</option>
-            <option value="yes">见过</option>
-            <option value="no">没见过</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="audio-familiarity">声音熟悉度</label
+          <label for="audio-familiarity">这个声音有多熟（可选）</label
           ><select id="audio-familiarity" v-model="form.audioFamiliarity">
             <option value="unknown">不确定</option>
-            <option value="high">高</option>
-            <option value="medium">中</option>
-            <option value="low">低</option>
+            <option value="low">没什么印象</option>
+            <option value="medium">有点熟，可能听过</option>
+            <option value="high">很熟，听到就认出来</option>
           </select>
         </div>
         <div class="field">
-          <label for="relevance">个人相关性</label
+          <label for="relevance">最近可能用到吗（可选）</label
           ><select id="relevance" v-model="form.personalRelevance">
-            <option value="unknown">不确定</option>
-            <option value="high">高</option>
-            <option value="medium">中</option>
-            <option value="low">低</option>
+            <option value="unknown">说不准</option>
+            <option value="high">很可能会用到</option>
+            <option value="medium">也许会用到</option>
+            <option value="low">暂时不会用到</option>
           </select>
         </div>
       </div>
       <div class="form-actions">
-        <span class="page-subtitle form-note">L0 不会仅因生僻而自动激活</span
+        <span class="page-subtitle form-note">不确定也可以记录，之后再补充</span
         ><button class="button" type="submit" :disabled="submitting">
-          {{ submitting ? "分析中…" : "分析并录入" }}
+          {{ submitting ? "记录中…" : "记录并分析" }}
         </button>
       </div>
     </form>
@@ -499,13 +525,14 @@ async function saveCard() {
         <div>
           <p class="eyebrow">录入结果</p>
           <h2>
-            {{ result.word.wordDisplay }} · {{ result.decision.classification }}
+            {{ result.word.wordDisplay }} ·
+            {{ classificationLabels[result.decision.classification] }}
           </h2>
         </div>
         <span
           class="status-chip"
           :class="`status-chip--${result.decision.container}`"
-          >{{ result.decision.container }}</span
+          >{{ containerLabels[result.decision.container] }}</span
         >
       </div>
       <p
@@ -515,7 +542,10 @@ async function saveCard() {
         主动池超过 15，这个词已安全留在候选箱；今天不会增加新任务。
       </p>
       <p v-if="result.decision.needsClarification" class="notice">
-        <strong>需要确认：</strong>{{ result.decision.clarifyingQuestion }}
+        不确定没关系，先按保守状态记录；下次只听声音时再确认即可。
+      </p>
+      <p v-if="result.decision.nextSkill === 'review-evaluator'" class="notice">
+        这是已有词条，本次遇见已追加记录，不需要重新创建语义卡。
       </p>
       <ul class="reason-list">
         <li v-for="reason in result.decision.admissionReasons" :key="reason">
@@ -525,87 +555,127 @@ async function saveCard() {
     </section>
 
     <form
-      v-if="result?.decision.admit && cardForm && !cardSaved"
+      v-if="result?.decision.admit && cardForm && !cardSaved && !cardDeferred"
       class="card card__body card-editor"
       @submit.prevent="saveCard"
     >
       <div>
         <p class="eyebrow">SEMANTIC CARD</p>
-        <h2>完成一个最小语义锚点</h2>
+        <h2>确认这次语境里的意思</h2>
         <p class="page-subtitle">
-          外部服务缺失的字段保持空白，请确认后保存。页面不会展开所有词典义项。
+          系统已经准备好一份最小草稿。你只需确认这次语境里的意思；不确定或资料不全时，可以稍后补全。
         </p>
       </div>
       <div class="form-grid">
-        <div class="field">
-          <label for="pronunciation">发音（没有则留空）</label
-          ><input
-            id="pronunciation"
-            v-model="cardForm.pronunciation"
-            placeholder="不自行补造 IPA"
-          />
-        </div>
-        <div class="field">
-          <label for="audio-url">音频 URL（可选）</label
-          ><input
-            id="audio-url"
-            v-model="cardForm.audioUrl"
-            type="url"
-            placeholder="https://…"
-          />
+        <div
+          v-if="cardForm.senseOptions.length > 1"
+          class="field form-grid__full"
+        >
+          <label for="sense">这次更接近哪个意思？</label>
+          <select
+            id="sense"
+            :value="cardForm.selectedSenseIndex ?? 0"
+            @change="handleSenseChange"
+          >
+            <option
+              v-for="(sense, index) in cardForm.senseOptions"
+              :key="`${sense.definitionEn}-${index}`"
+              :value="index"
+            >
+              {{ sense.definitionZh || sense.definitionEn }}
+            </option>
+          </select>
+          <span class="field-hint"
+            >系统已根据上下文预选；不确定时可保留第一项。</span
+          >
         </div>
         <div class="field form-grid__full">
-          <label for="meaning-en">一个核心英文含义 *</label
+          <label for="meaning-en">核心意思（系统建议，可修改）</label
           ><input
             id="meaning-en"
             v-model="cardForm.coreMeaningEn"
-            required
             maxlength="500"
           />
         </div>
         <div class="field form-grid__full">
-          <label for="meaning-zh">简洁中文桥接 *</label
+          <label for="meaning-zh">中文桥接（系统建议，可修改）</label
           ><input
             id="meaning-zh"
             v-model="cardForm.coreMeaningZh"
-            required
             maxlength="200"
           />
         </div>
         <div class="field form-grid__full">
-          <label for="anchor">一个自然例句 *</label
+          <label for="anchor">例句（优先使用真实上下文）</label
           ><textarea
             id="anchor"
             v-model="cardForm.anchorSentence"
-            required
             maxlength="1000"
           />
         </div>
         <div class="field form-grid__full">
-          <label for="scene">一个可想象的具体场景 *</label
+          <label for="scene">记忆画面（系统已生成，可修改）</label
           ><textarea
             id="scene"
             v-model="cardForm.semanticScene"
-            required
             maxlength="1000"
           />
         </div>
-        <div class="field form-grid__full">
-          <label for="prompt">听音回忆提示 *</label
-          ><input
-            id="prompt"
-            v-model="cardForm.retrievalPrompt"
-            required
-            maxlength="300"
-          />
-        </div>
+        <p v-if="!cardComplete" class="field-hint form-grid__full">
+          目前资料还不完整，可以直接点“稍后补全”，不会影响这次录入。
+        </p>
       </div>
+      <details class="card-editor__advanced">
+        <summary>发音与听音设置（高级，可不填）</summary>
+        <div class="form-grid">
+          <div class="field">
+            <label for="pronunciation">发音</label
+            ><input
+              id="pronunciation"
+              v-model="cardForm.pronunciation"
+              placeholder="没有可靠数据则留空"
+            />
+          </div>
+          <div class="field">
+            <label for="audio-url">音频 URL</label
+            ><input id="audio-url" v-model="cardForm.audioUrl" type="url" />
+          </div>
+          <div class="field form-grid__full">
+            <label for="prompt">听音回忆提示</label
+            ><input
+              id="prompt"
+              v-model="cardForm.retrievalPrompt"
+              maxlength="300"
+            />
+          </div>
+        </div>
+      </details>
       <div class="form-actions">
-        <button class="button" type="submit" :disabled="savingCard">
-          {{ savingCard ? "保存中…" : "保存语义卡" }}
+        <button class="button button--text" type="button" @click="deferCard">
+          稍后补全
+        </button>
+        <button
+          class="button"
+          type="submit"
+          :disabled="savingCard || !cardComplete"
+        >
+          {{ savingCard ? "保存中…" : "确认并保存语义卡" }}
         </button>
       </div>
     </form>
+
+    <AppState
+      v-if="result?.decision.admit && cardDeferred && !cardSaved"
+      kind="success"
+      title="已先记录单词"
+      message="语义卡不会阻塞录入；之后可以从语义卡页面继续补全。"
+      style="margin-top: 22px"
+      ><NuxtLink
+        class="button button--tonal"
+        :to="`/cards?create=${result.word.id}`"
+        >稍后去补全</NuxtLink
+      ></AppState
+    >
 
     <AppState
       v-if="cardSaved"

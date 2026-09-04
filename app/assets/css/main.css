@@ -402,6 +402,11 @@ h2 {
   font-size: 13px;
   font-weight: 700;
 }
+.field-hint {
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .field input,
 .field select,
 .field textarea {
@@ -510,6 +515,20 @@ h2 {
 .result-panel,
 .card-editor {
   margin-top: 22px;
+}
+.card-editor__advanced {
+  margin-top: 20px;
+  border-top: 1px solid var(--surface-high);
+  padding-top: 16px;
+}
+.card-editor__advanced summary {
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.card-editor__advanced[open] summary {
+  margin-bottom: 16px;
 }
 .result-panel__head {
   display: flex;
