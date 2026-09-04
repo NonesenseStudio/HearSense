@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACCESS_PASSWORD_LENGTH,
   createAccessSession,
+  isAccessPasswordValid,
   verifyAccessPassword,
   verifyAccessSession,
 } from "../server/utils/access";
+import { md5Hex } from "../server/utils/md5";
 
 describe("private access sessions", () => {
   const secret = "a-separate-session-secret-with-enough-entropy";
@@ -24,15 +27,19 @@ describe("private access sessions", () => {
     expect(await verifyAccessSession(token, secret, 4_600_000)).toBeNull();
   });
 
-  it("compares access passwords without exposing the configured value", async () => {
-    await expect(
-      verifyAccessPassword(
-        "correct horse battery staple",
-        "correct horse battery staple",
-      ),
-    ).resolves.toBe(true);
-    await expect(
-      verifyAccessPassword("wrong password", "correct horse battery staple"),
-    ).resolves.toBe(false);
+  it("requires an eight-character password and compares its MD5 hash", async () => {
+    const passwordMd5 = "25d55ad283aa400af464c76d713c07ad";
+
+    expect(ACCESS_PASSWORD_LENGTH).toBe(8);
+    expect(md5Hex("12345678")).toBe(passwordMd5);
+    expect(isAccessPasswordValid("12345678")).toBe(true);
+    expect(isAccessPasswordValid("1234567")).toBe(false);
+    expect(isAccessPasswordValid("123456789")).toBe(false);
+    await expect(verifyAccessPassword("12345678", passwordMd5)).resolves.toBe(
+      true,
+    );
+    await expect(verifyAccessPassword("12345679", passwordMd5)).resolves.toBe(
+      false,
+    );
   });
 });

@@ -80,8 +80,7 @@ async function submit() {
         class="notice notice--warning"
         role="alert"
       >
-        尚未配置访问密码。请在服务端设置
-        <code>NUXT_ACCESS_PASSWORD</code>（至少 16 个字符），然后重新加载。
+        尚未配置访问密码。请先在 D1 中初始化 8 位访问密码，然后重新加载。
       </p>
       <form v-else class="access-form" @submit.prevent="submit">
         <div class="field">
@@ -92,8 +91,8 @@ async function submit() {
             name="password"
             type="password"
             autocomplete="current-password"
-            minlength="16"
-            maxlength="256"
+            minlength="8"
+            maxlength="8"
             required
             autofocus
           />

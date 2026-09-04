@@ -12,6 +12,7 @@
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "access:password:set": "node scripts/access/set-password.mjs",
     "dictionary:build": "node scripts/dictionary/build-ecdict.mjs --profile=core",
     "dictionary:build:full": "node scripts/dictionary/build-ecdict.mjs --profile=full",
     "dictionary:config:check": "node scripts/dictionary/check-config.mjs",

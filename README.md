@@ -11,7 +11,7 @@ HearSense 是一个以“听到声音后理解核心含义”为目标的英语�
 - 不可变复习事件、自然重遇、状态变更、毕业与重新进入主动池
 - 可追溯学习分析、样本数、置信度、空分母返回 `null`
 - 响应式 Material 风格 UI、键盘操作和 loading/empty/error/offline/success 状态
-- PWA manifest、安装提示、Service Worker 页面/API 缓存、IndexedDB 离线事件队列
+- PWA manifest、安装提示、Service Worker 静态资源缓存、IndexedDB 离线事件队列
 
 ## 环境要求
 
@@ -25,10 +25,10 @@ HearSense 是一个以“听到声音后理解核心含义”为目标的英语�
 pnpm install
 ```
 
-复制 `.env.example` 为 `.env`，并设置个人访问密码：
+复制 `.env.example` 为 `.env`，可覆盖本地服务配置；访问密码不写入环境变量或仓库，而是初始化到业务 D1：
 
 ```dotenv
-NUXT_ACCESS_PASSWORD=至少 16 个字符的随机长密码
+NUXT_ACCESS_COOKIE_SECRET=至少 32 个字符的随机值（可选）
 NUXT_ACCESS_SESSION_TTL_SECONDS=604800
 NUXT_UAPIS_BASE_URL=https://uapis.cn
 NUXT_YOUDAO_BASE_URL=https://dict.youdao.com
@@ -37,7 +37,7 @@ NUXT_DICTIONARY_TIMEOUT_MS=6000
 NUXT_UAPIS_API_KEY=
 ```
 
-`NUXT_ACCESS_PASSWORD` 未配置或过短时应用会拒绝业务请求（API 返回 503），不会默认开放。访问密码和可选的 `NUXT_ACCESS_COOKIE_SECRET` 只在服务端使用；后者应为至少 32 个字符的独立随机值。前端通过 `/api/dictionary/*` 访问统一服务层，不直接拼接外部 URL。uapis key 请使用 `wrangler secret put NUXT_UAPIS_API_KEY`，不要放入 `NUXT_PUBLIC_*`。
+访问密码严格为 8 个字符，D1 只保存其 32 位小写 MD5 值（`access_credentials.password_md5`），不会保存明文。执行 `pnpm run access:password:set -- --local` 或 `pnpm run access:password:set -- --remote` 初始化/更新密码；密码只通过当前进程的 `ACCESS_PASSWORD` 环境变量传给脚本。`NUXT_ACCESS_COOKIE_SECRET` 可选，建议使用至少 32 个字符的独立随机值。前端通过 `/api/dictionary/*` 访问统一服务层，不直接拼接外部 URL。uapis key 请使用 `wrangler secret put NUXT_UAPIS_API_KEY`，不要放入 `NUXT_PUBLIC_*`。
 
 ## 本地开发
 
@@ -51,6 +51,9 @@ pnpm dev
 
 ```bash
 pnpm db:migrate:local
+$env:ACCESS_PASSWORD = "你的8位访问密码"
+pnpm run access:password:set -- --local
+Remove-Item Env:ACCESS_PASSWORD
 pnpm dev:worker
 ```
 
@@ -85,13 +88,15 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm db:migrate:remote
+$env:ACCESS_PASSWORD = "你的8位访问密码"
+pnpm run access:password:set -- --remote
+Remove-Item Env:ACCESS_PASSWORD
 pnpm run deploy
 ```
 
-项目只部署到现有 Worker `hearsense`；`wrangler.jsonc` 的默认配置用于远程部署和生产 D1 binding，本地命令会使用 Wrangler 的本地 D1 副本。部署前必须替换两个生产 D1 ID，并配置访问保护和 uapis key：
+项目只部署到现有 Worker `hearsense`；`wrangler.jsonc` 的默认配置用于远程部署和生产 D1 binding，本地命令会使用 Wrangler 的本地 D1 副本。访问密码必须严格为 8 个字符，执行 migration 后用 `access:password:set` 写入 D1；脚本只把 MD5 hash 写入 `access_credentials`，不会保存明文。部署前必须替换两个生产 D1 ID，并配置可选的会话签名密钥和 uapis key：
 
 ```bash
-wrangler secret put NUXT_ACCESS_PASSWORD
 wrangler secret put NUXT_ACCESS_COOKIE_SECRET  # 可选，但建议配置
 wrangler secret put NUXT_UAPIS_API_KEY         # 可选
 ```

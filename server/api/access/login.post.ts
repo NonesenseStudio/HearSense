@@ -1,6 +1,7 @@
 import { setHeader } from "h3";
 import { z } from "zod";
 import {
+  ACCESS_PASSWORD_LENGTH,
   establishAccessSession,
   getAccessConfig,
   verifyAccessPassword,
@@ -11,7 +12,9 @@ import {
   recordLoginSuccess,
 } from "../../utils/login-rate-limit";
 
-const loginSchema = z.object({ password: z.string().min(1).max(256) });
+const loginSchema = z.object({
+  password: z.string().length(ACCESS_PASSWORD_LENGTH),
+});
 
 export default defineEventHandler(async (event) => {
   setHeader(event, "Cache-Control", "no-store, max-age=0");
@@ -25,12 +28,12 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const config = getAccessConfig(event);
+  const config = await getAccessConfig(event);
   if (!config.configured)
     throw createError({
       statusCode: 503,
       statusMessage: "ACCESS_NOT_CONFIGURED",
-      message: "访问保护尚未配置，请先设置 NUXT_ACCESS_PASSWORD。",
+      message: "访问保护尚未配置，请先在 D1 中初始化 8 位访问密码。",
     });
 
   const parsed = loginSchema.safeParse(await readBody(event));
@@ -45,7 +48,7 @@ export default defineEventHandler(async (event) => {
 
   const valid = await verifyAccessPassword(
     parsed.data.password,
-    config.password,
+    config.passwordMd5,
   );
   if (!valid) {
     recordLoginFailure(event);

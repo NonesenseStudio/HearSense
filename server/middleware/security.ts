@@ -74,13 +74,13 @@ export default defineEventHandler(async (event) => {
   if (isPublicAccessPath(pathname) || isPublicAssetPath(pathname)) return;
 
   const apiRequest = isApiPath(pathname);
-  const config = getAccessConfig(event);
+  const config = await getAccessConfig(event);
   if (!config.configured) {
     if (apiRequest)
       throw createError({
         statusCode: 503,
         statusMessage: "ACCESS_NOT_CONFIGURED",
-        message: "访问保护尚未配置，请先设置 NUXT_ACCESS_PASSWORD。",
+        message: "访问保护尚未配置，请先在 D1 中初始化 8 位访问密码。",
       });
     return sendRedirect(
       event,

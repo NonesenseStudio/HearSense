@@ -7,9 +7,11 @@ import {
   setCookie,
   type H3Event,
 } from "h3";
+import { getDb } from "./db";
+import { md5Hex } from "./md5";
 
 export const ACCESS_COOKIE_NAME = "hearsense_access";
-export const MIN_ACCESS_PASSWORD_LENGTH = 16;
+export const ACCESS_PASSWORD_LENGTH = 8;
 export const DEFAULT_ACCESS_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const MIN_ACCESS_SESSION_TTL_SECONDS = 60 * 60;
 export const MAX_ACCESS_SESSION_TTL_SECONDS = 90 * 24 * 60 * 60;
@@ -17,7 +19,7 @@ export const MAX_ACCESS_SESSION_TTL_SECONDS = 90 * 24 * 60 * 60;
 const TEXT_ENCODER = new TextEncoder();
 
 export interface AccessConfig {
-  password: string;
+  passwordMd5: string;
   sessionSecret: string;
   sessionTtlSeconds: number;
   configured: boolean;
@@ -32,16 +34,38 @@ interface AccessSessionPayload extends AccessSession {
   nonce: string;
 }
 
-export function getAccessConfig(event: H3Event): AccessConfig {
+interface AccessCredentialRow {
+  password_md5: string;
+}
+
+function isMd5Hex(value: string): boolean {
+  return /^[0-9a-f]{32}$/.test(value);
+}
+
+export function isAccessPasswordValid(value: string): boolean {
+  return Array.from(value).length === ACCESS_PASSWORD_LENGTH;
+}
+
+async function getStoredAccessPasswordMd5(event: H3Event): Promise<string> {
+  try {
+    const row = await getDb(event)
+      .prepare(
+        "SELECT password_md5 FROM access_credentials WHERE id = 'default'",
+      )
+      .first<AccessCredentialRow>();
+    return typeof row?.password_md5 === "string" ? row.password_md5 : "";
+  } catch {
+    return "";
+  }
+}
+
+export async function getAccessConfig(event: H3Event): Promise<AccessConfig> {
   const runtimeConfig = useRuntimeConfig(event);
-  const password =
-    typeof runtimeConfig.accessPassword === "string"
-      ? runtimeConfig.accessPassword
-      : "";
   const configuredCookieSecret =
     typeof runtimeConfig.accessCookieSecret === "string"
       ? runtimeConfig.accessCookieSecret
       : "";
+  const passwordMd5 = await getStoredAccessPasswordMd5(event);
   const sessionTtlValue = Number(runtimeConfig.accessSessionTtlSeconds);
   const sessionTtlSeconds = Number.isFinite(sessionTtlValue)
     ? Math.min(
@@ -51,11 +75,11 @@ export function getAccessConfig(event: H3Event): AccessConfig {
     : DEFAULT_ACCESS_SESSION_TTL_SECONDS;
 
   return {
-    password,
-    sessionSecret: configuredCookieSecret || password,
+    passwordMd5,
+    sessionSecret: configuredCookieSecret || passwordMd5,
     sessionTtlSeconds,
     configured:
-      password.trim().length >= MIN_ACCESS_PASSWORD_LENGTH &&
+      isMd5Hex(passwordMd5) &&
       (!configuredCookieSecret || configuredCookieSecret.length >= 32),
   };
 }
@@ -88,12 +112,6 @@ function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0;
 }
 
-async function digestText(value: string): Promise<Uint8Array> {
-  return new Uint8Array(
-    await crypto.subtle.digest("SHA-256", TEXT_ENCODER.encode(value)),
-  );
-}
-
 async function signText(secret: string, value: string): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -109,14 +127,15 @@ async function signText(secret: string, value: string): Promise<Uint8Array> {
 
 export async function verifyAccessPassword(
   candidate: string,
-  expected: string,
+  expectedPasswordMd5: string,
 ): Promise<boolean> {
-  if (!candidate || !expected) return false;
-  const [candidateDigest, expectedDigest] = await Promise.all([
-    digestText(candidate),
-    digestText(expected),
-  ]);
-  return constantTimeEqual(candidateDigest, expectedDigest);
+  if (!isAccessPasswordValid(candidate) || !isMd5Hex(expectedPasswordMd5))
+    return false;
+  const candidateDigest = md5Hex(candidate);
+  return constantTimeEqual(
+    TEXT_ENCODER.encode(candidateDigest),
+    TEXT_ENCODER.encode(expectedPasswordMd5),
+  );
 }
 
 export async function createAccessSession(
@@ -183,12 +202,13 @@ export async function verifyAccessSession(
 
 export async function getAccessSession(
   event: H3Event,
-  config = getAccessConfig(event),
+  config?: AccessConfig,
 ): Promise<AccessSession | null> {
-  if (!config.configured) return null;
+  const resolvedConfig = config ?? (await getAccessConfig(event));
+  if (!resolvedConfig.configured) return null;
   return verifyAccessSession(
     getCookie(event, ACCESS_COOKIE_NAME),
-    config.sessionSecret,
+    resolvedConfig.sessionSecret,
   );
 }
 

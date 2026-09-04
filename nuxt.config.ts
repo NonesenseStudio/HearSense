@@ -9,7 +9,6 @@ export default defineNuxtConfig({
     cloudflare: { deployConfig: false, nodeCompat: true },
   },
   runtimeConfig: {
-    accessPassword: "",
     accessCookieSecret: "",
     accessSessionTtlSeconds: 604800,
     uapisBaseUrl: "https://uapis.cn",
