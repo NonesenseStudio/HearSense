@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 
 const ACCESS_PASSWORD_LENGTH = 8;
 const hasRemoteFlag = process.argv.includes("--remote");
@@ -32,12 +34,16 @@ const sql = [
   "password_md5 = excluded.password_md5, updated_at = excluded.updated_at;",
 ].join(" ");
 
-const wranglerCommand =
-  process.platform === "win32" ? "wrangler.cmd" : "wrangler";
+const require = createRequire(import.meta.url);
+const wranglerCommand = join(
+  dirname(require.resolve("wrangler/package.json")),
+  "wrangler-dist",
+  "cli.js",
+);
 const target = hasRemoteFlag ? "--remote" : "--local";
 const child = spawn(
-  wranglerCommand,
-  ["d1", "execute", "DB", target, "--command", sql],
+  process.execPath,
+  [wranglerCommand, "d1", "execute", "DB", target, "--command", sql],
   { stdio: "inherit" },
 );
 
